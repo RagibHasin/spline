@@ -1,6 +1,9 @@
 //! Representation and computation of hyperbeziers.
 
-use kurbo::{common::GAUSS_LEGENDRE_COEFFS_32, CurveFitSample, ParamCurve, ParamCurveFit, Point, Vec2};
+use kurbo::{
+    common::GAUSS_LEGENDRE_COEFFS_32, Affine, CurveFitSample, ParamCurve, ParamCurveFit,
+    ParamCurveNearest, Point, Vec2,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct HyperbezParams {
@@ -31,7 +34,14 @@ impl HyperbezParams {
         let dd = d * denom;
         let th_a = (2. * b * c - d * a) * denom;
         let th_b = b * dd - a * (1. + 0.5 * d * dd) / c;
-        HyperbezParams { a, b, c, d, th_a, th_b }
+        HyperbezParams {
+            a,
+            b,
+            c,
+            d,
+            th_a,
+            th_b,
+        }
     }
 
     /// Determine the angle for the given parameter.
@@ -39,9 +49,15 @@ impl HyperbezParams {
     /// This can be interpreted as a Whewell representation of the
     /// curve. The `t` parameter ranges from 0 to 1, and the returned
     /// value is 0 for `t = 0`.
-    fn theta(&self, t: f64) -> f64 {
+    pub fn theta(&self, t: f64) -> f64 {
         let q = self.c * t * t + self.d * t + 1.;
         (self.th_a * t + self.th_b) / q.sqrt() - self.th_b
+    }
+
+    pub fn kappa(&self, t: f64) -> f64 {
+        let q = self.c * t * t + self.d * t + 1.;
+        // (self.th_a * t + self.th_b) / q.sqrt() - self.th_b
+        (self.th_a - (2. * self.c * t + self.d) * (self.th_a * t + self.th_b)) / q.sqrt()
     }
 
     /// Evaluate the position of the raw curve.
@@ -63,12 +79,29 @@ impl HyperbezParams {
 
 impl Hyperbezier {
     /// Create a new hyperbezier curve with given parameters and end points.
-    pub fn from_points_params(params: HyperbezParams, p0: Point, p1: Point) -> Self{
+    pub fn from_points_params(params: HyperbezParams, p0: Point, p1: Point) -> Self {
         let uv = params.integrate(1.0);
         let uv_scaled = uv / uv.length_squared();
         let d = p1 - p0;
         let scale_rot = Vec2::new(uv_scaled.dot(d), uv_scaled.cross(d));
-        Hyperbezier { params, p0, p1, scale_rot }
+        Hyperbezier {
+            params,
+            p0,
+            p1,
+            scale_rot,
+        }
+    }
+
+    pub fn params(&self) -> &HyperbezParams {
+        &self.params
+    }
+
+    pub fn theta(&self, t: f64) -> f64 {
+        self.params.theta(t) + self.scale_rot.angle()
+    }
+
+    pub fn kappa(&self, t: f64) -> f64 {
+        self.params.kappa(t) / self.scale_rot.length()
     }
 }
 
@@ -124,5 +157,16 @@ impl ParamCurveFit for Hyperbezier {
 
     fn break_cusp(&self, _: std::ops::Range<f64>) -> Option<f64> {
         None
+    }
+}
+
+impl ParamCurveNearest for Hyperbezier {
+    fn nearest(&self, p: Point, accuracy: f64) -> kurbo::Nearest {
+        let p_local = Affine::translate(self.p0.to_vec2())
+            .then_rotate(-self.scale_rot.angle())
+            .then_scale(1. / self.scale_rot.length())
+            * p;
+
+        todo!()
     }
 }

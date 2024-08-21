@@ -65,7 +65,7 @@ impl HyperbezParams {
     /// This is simply the integral of the Whewell representation,
     /// so that the total arc length is unit, and the initial tangent
     /// is horizontal.
-    fn integrate(&self, t: f64) -> Vec2 {
+    pub fn integrate(&self, t: f64) -> Vec2 {
         // TODO: improve accuracy by subdividing in near-cusp cases
         let mut xy = Vec2::ZERO;
         let u0 = 0.5 * t;
@@ -94,6 +94,10 @@ impl Hyperbezier {
 
     pub fn params(&self) -> &HyperbezParams {
         &self.params
+    }
+
+    pub fn scale_rot(&self) -> Vec2 {
+        self.scale_rot
     }
 
     pub fn theta(&self, t: f64) -> f64 {

@@ -56,8 +56,8 @@ impl HyperbezParams {
 
     pub fn kappa(&self, t: f64) -> f64 {
         let q = self.c * t * t + self.d * t + 1.;
-        // (self.th_a * t + self.th_b) / q.sqrt() - self.th_b
-        (self.th_a - (2. * self.c * t + self.d) * (self.th_a * t + self.th_b)) / q.sqrt()
+        let q_sqrt = q.sqrt();
+        (self.a * t + self.b) / q / q_sqrt
     }
 
     /// Evaluate the position of the raw curve.
@@ -74,6 +74,25 @@ impl HyperbezParams {
             xy += *wi * Vec2::from_angle(self.theta(u));
         }
         u0 * xy
+    }
+
+    pub fn a(&self) -> f64 {
+        self.a
+    }
+    pub fn b(&self) -> f64 {
+        self.b
+    }
+    pub fn c(&self) -> f64 {
+        self.c
+    }
+    pub fn d(&self) -> f64 {
+        self.d
+    }
+    pub fn th_a(&self) -> f64 {
+        self.th_a
+    }
+    pub fn th_b(&self) -> f64 {
+        self.th_b
     }
 }
 
@@ -170,6 +189,13 @@ impl ParamCurveNearest for Hyperbezier {
             .then_rotate(-self.scale_rot.angle())
             .then_scale(1. / self.scale_rot.length())
             * p;
+
+        // 1. if theta1 < 2pi, check if p_local is in the sweep region between normal0 and normal1
+        //   1a. if true, then subdivide and repeat from 1 for each half
+        //   1b. if false, then either s = 0 or s = 1 is nearest, check and tell
+        // 2. otherwise sibdivide for theta1 = 2pi and repeat from 1
+
+        if self.params.theta(1.) >= std::f64::consts::TAU {}
 
         todo!()
     }
